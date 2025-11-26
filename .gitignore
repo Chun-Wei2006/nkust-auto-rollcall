@@ -1,2 +1,16 @@
-/venv
-/.env
+# Python
+__pycache__/
+*.pyc
+*.pyo
+venv/
+.venv/
+
+# 環境變數
+.env
+
+# IDE
+.vscode/
+.idea/
+
+# Claude Code
+.claude/
