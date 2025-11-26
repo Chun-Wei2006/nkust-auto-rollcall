@@ -5,8 +5,17 @@ __pycache__/
 venv/
 .venv/
 
+# Node.js
+node_modules/
+.next/
+out/
+build/
+*.tsbuildinfo
+
 # 環境變數
 .env
+.env.local
+.env.*.local
 
 # IDE
 .vscode/
@@ -14,3 +23,7 @@ venv/
 
 # Claude Code
 .claude/
+
+# OS
+.DS_Store
+Thumbs.db
