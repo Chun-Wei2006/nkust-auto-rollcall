@@ -6,8 +6,8 @@
 
 | 服務 | 網址 |
 |------|------|
-| **前端網站** | https://frontend-aqr5rvrz2-bryans-projects-da655399.vercel.app |
-| **後端 API** | https://nkust-auto-rollcall-api.onrender.com |
+| **前端網站** | https://frontend-49ewhhwru-bryans-projects-da655399.vercel.app |
+| **後端 API** | https://nkust-auto-rollcall.onrender.com |
 
 > **注意**：後端使用 Render 免費方案，閒置 15 分鐘後會休眠，首次請求可能需要等待 30-60 秒喚醒。
 
@@ -61,7 +61,7 @@ nkust-auto-rollcall/
 
 ### 線上使用
 
-1. 開啟 [前端網站](https://frontend-aqr5rvrz2-bryans-projects-da655399.vercel.app)
+1. 開啟 [前端網站](https://frontend-49ewhhwru-bryans-projects-da655399.vercel.app)
 2. 輸入學號與密碼
 3. 掃描教室 QR Code 或手動輸入點名參數
 4. 點擊「開始點名」按鈕

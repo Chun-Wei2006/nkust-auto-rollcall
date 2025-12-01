@@ -26,11 +26,29 @@ class AutoRollcall:
         self.browser: Browser | None = None
         self.page: Page | None = None
 
-    def start_browser(self, headless=False):
+    def start_browser(self, headless=True):
         logging.info("啟動瀏覽器...")
         self.playwright = sync_playwright().start()
-        self.browser = self.playwright.chromium.launch(headless=headless)
+        self.browser = self.playwright.chromium.launch(
+            headless=headless,
+            args=[
+                '--disable-gpu',
+                '--disable-dev-shm-usage',
+                '--disable-extensions',
+                '--no-sandbox',
+                '--disable-background-networking',
+                '--disable-sync',
+                '--disable-translate',
+                '--metrics-recording-only',
+                '--mute-audio',
+                '--no-first-run',
+                '--safebrowsing-disable-auto-update',
+            ]
+        )
+        # 建立輕量化頁面，阻擋不必要的資源
         self.page = self.browser.new_page()
+        self.page.route("**/*.{png,jpg,jpeg,gif,webp,svg,ico}", lambda route: route.abort())
+        self.page.route("**/*.{woff,woff2,ttf,otf}", lambda route: route.abort())
 
     def login_moocs(self) -> bool:
         """
@@ -51,13 +69,16 @@ class AutoRollcall:
             logging.info(f"✓ 頁面載入完成")
 
             # 等待登入表單
-            logging.info(f"\n尋找登入表單...")
+            logging.info(f"尋找登入表單...")
             self.page.locator('#account')
 
             logging.info("點擊登入按鈕...")
             login_open_btn = self.page.locator('button:has-text("登入")').first
             login_open_btn.click()
-            time.sleep(1)
+
+            # 等待登入表單出現
+            self.page.wait_for_selector('#account', state='visible', timeout=5000)
+
             # 填寫帳號密碼
             logging.info(f"填寫帳號: {self.username}")
             self.page.fill('#account', self.username)
@@ -70,16 +91,18 @@ class AutoRollcall:
             login_submit_btn = self.page.locator('button[type="submit"].login-form__button')
             login_submit_btn.click()
 
-            # 等待登入完成
+            # 等待登入完成 - 使用更精確的等待條件
             logging.info(f"等待登入完成...")
-            time.sleep(3)
-            self.page.wait_for_load_state('networkidle')
-
-            # 檢查是否出現登入失敗彈窗
-            login_fail_dialog = self.page.locator('text=登入失敗')
-            if login_fail_dialog.is_visible(timeout=2000):
+            try:
+                # 等待登入失敗彈窗或頁面跳轉（最多等 8 秒）
+                login_fail_dialog = self.page.locator('text=登入失敗')
+                login_fail_dialog.wait_for(state='visible', timeout=3000)
                 logging.error("❌ 登入失敗：帳號或密碼錯誤")
                 return False
+            except:
+                # 沒有出現失敗彈窗，代表登入成功
+                self.page.wait_for_load_state('domcontentloaded', timeout=10000)
+                pass
 
             logging.info("✓ 登入成功")
             return True
@@ -108,46 +131,56 @@ class AutoRollcall:
             rollcall_url = "https://elearning.nkust.edu.tw/mooc/teach/rollcall/start.php"
 
         logging.info(f"訪問 Rollcall URL: {rollcall_url}")
-        self.page.goto(rollcall_url)
-        self.page.wait_for_load_state('networkidle')
-        time.sleep(2)
+        self.page.goto(rollcall_url, wait_until='domcontentloaded')
 
         final_url = self.page.url
         logging.info(f"當前 URL: {final_url}")
 
         return True
 
-    def run(self, rollcall_goto=None, keep_browser_open=True):
+    def run(self, rollcall_goto=None):
         """
         執行完整的自動點名流程
 
         Args:
             rollcall_goto: rollcall 的 goto 參數
-            keep_browser_open: 是否保持瀏覽器開啟（方便檢查結果）
+
+        Returns:
+            dict: 包含 success 狀態和 elapsed_time 執行時間（秒）
         """
+        start_time = time.time()
+
         try:
             # Step 1: 登入 Moocs
+            login_start = time.time()
             if not self.login_moocs():
                 logging.error("\n❌ 自動點名失敗：無法登入 Moocs")
-                return False
+                elapsed_time = time.time() - start_time
+                logging.info(f"⏱️ 總執行時間: {elapsed_time:.2f} 秒")
+                return {"success": False, "elapsed_time": elapsed_time}
+            login_elapsed = time.time() - login_start
+            logging.info(f"⏱️ 登入耗時: {login_elapsed:.2f} 秒")
 
             # Step 2: 訪問 Rollcall
+            rollcall_start = time.time()
             if not self.visit_rollcall(rollcall_goto):
                 logging.error("\n❌ 自動點名失敗：無法訪問 Rollcall")
-                return False
+                elapsed_time = time.time() - start_time
+                logging.info(f"⏱️ 總執行時間: {elapsed_time:.2f} 秒")
+                return {"success": False, "elapsed_time": elapsed_time}
+            rollcall_elapsed = time.time() - rollcall_start
+            logging.info(f"⏱️ 點名頁面耗時: {rollcall_elapsed:.2f} 秒")
 
-            logging.info("✅ 自動點名流程完成！")
-
-            # 保持瀏覽器開啟一段時間
-            if keep_browser_open:
-                logging.info("瀏覽器將保持開啟 3 秒，請檢查結果...")
-                time.sleep(3)
-
-            return True
+            elapsed_time = time.time() - start_time
+            logging.info(f"✅ 自動點名流程完成！")
+            logging.info(f"⏱️ 總執行時間: {elapsed_time:.2f} 秒")
+            return {"success": True, "elapsed_time": elapsed_time}
 
         except Exception as e:
             logging.error(f"\n❌ 執行過程發生錯誤: {e}")
-            return False
+            elapsed_time = time.time() - start_time
+            logging.info(f"⏱️ 總執行時間: {elapsed_time:.2f} 秒")
+            return {"success": False, "elapsed_time": elapsed_time}
 
     def close(self):
         """關閉瀏覽器"""
@@ -178,12 +211,9 @@ def main():
         auto_rollcall.start_browser(headless=False)
 
         # 執行自動點名
-        success = auto_rollcall.run(
-            rollcall_goto=rollcall_goto,
-            keep_browser_open=True  # 設為 False 可以自動關閉瀏覽器
-        )
+        result = auto_rollcall.run(rollcall_goto=rollcall_goto)
 
-        if success:
+        if result["success"]:
             logging.info("✅ 自動點名成功！")
         else:
             logging.error("❌ 自動點名失敗，請檢查錯誤訊息")

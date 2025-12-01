@@ -38,6 +38,7 @@ class RollcallRequest(BaseModel):
 class RollcallResponse(BaseModel):
     success: bool
     message: str
+    elapsed_time: float | None = None  # 執行時間（秒）
 
 
 @app.post("/rollcall/", response_model=RollcallResponse)
@@ -47,13 +48,14 @@ def rollcall(request: RollcallRequest) -> RollcallResponse:
 
     try:
         auto_rollcall.start_browser(headless=True)
-        success = auto_rollcall.run(
-            rollcall_goto=request.rollcall_goto,
-            keep_browser_open=False
-        )
+        result = auto_rollcall.run(rollcall_goto=request.rollcall_goto)
 
-        if success:
-            return RollcallResponse(success=True, message="點名成功")
+        if result["success"]:
+            return RollcallResponse(
+                success=True,
+                message="點名成功",
+                elapsed_time=result["elapsed_time"]
+            )
         else:
             raise HTTPException(status_code=401, detail="登入失敗")
 
