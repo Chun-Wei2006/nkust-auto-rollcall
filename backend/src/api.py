@@ -29,6 +29,12 @@ app.add_middleware(
 )
 
 
+@app.get("/")
+def health_check():
+    """健康檢查端點"""
+    return {"status": "ok", "message": "NKUST Auto Rollcall API is running"}
+
+
 class RollcallRequest(BaseModel):
     username: str
     password: str
