@@ -50,67 +50,6 @@ class AutoRollcall:
         self.page.route("**/*.{png,jpg,jpeg,gif,webp,svg,ico}", lambda route: route.abort())
         self.page.route("**/*.{woff,woff2,ttf,otf}", lambda route: route.abort())
 
-    def login_moocs(self) -> bool:
-        """
-        登入 Moocs 網站
-        """
-        if self.page is None:
-            raise RuntimeError("Browser not started. Call start_browser() first.")
-
-        target_url = "https://elearning.nkust.edu.tw/moocs/#/home"
-
-        try:
-            logging.info(f"步驟 1: 登入 Moocs 網站")
-
-            # 訪問首頁
-            logging.info(f"訪問 Moocs 首頁...")
-            self.page.goto(target_url)
-            self.page.wait_for_load_state('networkidle')
-            logging.info(f"✓ 頁面載入完成")
-
-            # 等待登入表單
-            logging.info(f"尋找登入表單...")
-            self.page.locator('#account')
-
-            logging.info("點擊登入按鈕...")
-            login_open_btn = self.page.locator('button:has-text("登入")').first
-            login_open_btn.click()
-
-            # 等待登入表單出現
-            self.page.wait_for_selector('#account', state='visible', timeout=5000)
-
-            # 填寫帳號密碼
-            logging.info(f"填寫帳號: {self.username}")
-            self.page.fill('#account', self.username)
-
-            logging.info(f"填寫密碼")
-            self.page.fill('#password', self.password)
-
-            # 點擊登入
-            logging.info(f"點擊登入按鈕...")
-            login_submit_btn = self.page.locator('button[type="submit"].login-form__button')
-            login_submit_btn.click()
-
-            # 等待登入完成 - 使用更精確的等待條件
-            logging.info(f"等待登入完成...")
-            try:
-                # 等待登入失敗彈窗或頁面跳轉（最多等 8 秒）
-                login_fail_dialog = self.page.locator('text=登入失敗')
-                login_fail_dialog.wait_for(state='visible', timeout=3000)
-                logging.error("❌ 登入失敗：帳號或密碼錯誤")
-                return False
-            except:
-                # 沒有出現失敗彈窗，代表登入成功
-                self.page.wait_for_load_state('domcontentloaded', timeout=10000)
-                pass
-
-            logging.info("✓ 登入成功")
-            return True
-
-        except Exception as e:
-            logging.error(f"❌ 登入過程發生錯誤: {e}")
-            return False
-
     def visit_rollcall(self, rollcall_goto: str | None) -> bool:
         """
         訪問 Rollcall 頁面並完成點名
@@ -151,16 +90,6 @@ class AutoRollcall:
         start_time = time.time()
 
         try:
-            # Step 1: 登入 Moocs
-            login_start = time.time()
-            if not self.login_moocs():
-                logging.error("\n❌ 自動點名失敗：無法登入 Moocs")
-                elapsed_time = time.time() - start_time
-                logging.info(f"⏱️ 總執行時間: {elapsed_time:.2f} 秒")
-                return {"success": False, "elapsed_time": elapsed_time}
-            login_elapsed = time.time() - login_start
-            logging.info(f"⏱️ 登入耗時: {login_elapsed:.2f} 秒")
-
             # Step 2: 訪問 Rollcall
             rollcall_start = time.time()
             if not self.visit_rollcall(rollcall_goto):
