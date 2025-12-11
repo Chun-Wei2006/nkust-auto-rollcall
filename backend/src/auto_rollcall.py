@@ -49,17 +49,20 @@ class AutoRollcall:
         self.page.route("**/*.{png,jpg,jpeg,gif,webp,svg,ico}", lambda route: route.abort())
         self.page.route("**/*.{woff,woff2,ttf,otf}", lambda route: route.abort())
 
-    def visit_rollcall(self, rollcall_goto: str | None) -> bool:
+    def visit_rollcall(self, rollcall_goto: str | None) -> dict:
         """
         訪問 Rollcall 頁面並完成點名
 
         Args:
             rollcall_goto: rollcall 的 goto 參數
+
+        Returns:
+            dict: 包含 success 狀態和 message 訊息
         """
         if self.page is None:
             raise RuntimeError("Browser not started. Call start_browser() first.")
 
-        logging.info(f"步驟 2: 訪問 Rollcall 頁面")
+        logging.info(f"訪問 Rollcall 頁面")
 
         # 構建 rollcall URL
         rollcall_url = f"https://elearning.nkust.edu.tw/mooc/teach/rollcall/start.php?goto={rollcall_goto}"
@@ -74,7 +77,22 @@ class AutoRollcall:
         self.page.fill('#password', self.password)
         self.page.click("text=登入")
 
-        return True
+        # 等待頁面載入完成
+        self.page.wait_for_load_state('networkidle')
+
+        # 取得頁面文字內容來判斷結果
+        page_content = self.page.content()
+
+        # 判斷點名結果
+        if "完成報到" in page_content:
+            logging.info("✅ 點名成功：完成報到")
+            return {"success": True, "message": "完成報到"}
+        elif "點名時間已結束" in page_content:
+            logging.warning("⚠️ 點名失敗：點名時間已結束")
+            return {"success": False, "message": "點名時間已結束"}
+        else:
+            logging.warning("⚠️ 無法判斷點名結果")
+            return {"success": False, "message": "無法判斷點名結果"}
 
     def run(self, rollcall_goto=None):
         """
@@ -84,32 +102,26 @@ class AutoRollcall:
             rollcall_goto: rollcall 的 goto 參數
 
         Returns:
-            dict: 包含 success 狀態和 elapsed_time 執行時間（秒）
+            dict: 包含 success 狀態、message 訊息和 elapsed_time 執行時間（秒）
         """
-
         start_time = time.time()
 
         try:
-            # Step 2: 訪問 Rollcall
-            rollcall_start = time.time()
-            if not self.visit_rollcall(rollcall_goto):
-                logging.error("\n❌ 自動點名失敗：無法訪問 Rollcall")
-                elapsed_time = time.time() - start_time
-                logging.info(f"⏱️ 總執行時間: {elapsed_time:.2f} 秒")
-                return {"success": False, "elapsed_time": elapsed_time}
-            rollcall_elapsed = time.time() - rollcall_start
-            logging.info(f"⏱️ 點名頁面耗時: {rollcall_elapsed:.2f} 秒")
-
+            result = self.visit_rollcall(rollcall_goto)
             elapsed_time = time.time() - start_time
-            logging.info(f"✅ 自動點名流程完成！")
             logging.info(f"⏱️ 總執行時間: {elapsed_time:.2f} 秒")
-            return {"success": True, "elapsed_time": elapsed_time}
+
+            return {
+                "success": result["success"],
+                "message": result["message"],
+                "elapsed_time": elapsed_time
+            }
 
         except Exception as e:
             logging.error(f"\n❌ 執行過程發生錯誤: {e}")
             elapsed_time = time.time() - start_time
             logging.info(f"⏱️ 總執行時間: {elapsed_time:.2f} 秒")
-            return {"success": False, "elapsed_time": elapsed_time}
+            return {"success": False, "message": str(e), "elapsed_time": elapsed_time}
 
     def close(self):
         """關閉瀏覽器"""

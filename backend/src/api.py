@@ -54,17 +54,12 @@ def rollcall(request: RollcallRequest) -> RollcallResponse:
         auto_rollcall.start_browser(headless=True)
         result = auto_rollcall.run(rollcall_goto=request.rollcall_goto)
 
-        if result["success"]:
-            return RollcallResponse(
-                success=True,
-                message="點名成功",
-                elapsed_time=result["elapsed_time"]
-            )
-        else:
-            raise HTTPException(status_code=401, detail="登入失敗")
+        return RollcallResponse(
+            success=result["success"],
+            message=result["message"],
+            elapsed_time=result["elapsed_time"]
+        )
 
-    except HTTPException:
-        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     finally:
