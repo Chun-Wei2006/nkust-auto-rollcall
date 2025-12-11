@@ -6,6 +6,7 @@ services:
       - "8000:8000"
     environment:
       - PORT=8000
+      - FRONTEND_URL=https://frontend-alpha-rosy-16.vercel.app
     networks:
       - tunnel-network
 

@@ -7,25 +7,23 @@ from .auto_rollcall import AutoRollcall
 
 app = FastAPI()
 
-# CORS 設定 - 允許本地開發與 Vercel 部署的前端
+# CORS 設定 - 只允許特定來源
 allowed_origins = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
 ]
 
-# 從環境變數讀取額外的前端 URL
+# 從環境變數讀取前端 URL（必須明確指定，不再允許所有 vercel.app）
 frontend_url = os.getenv("FRONTEND_URL")
 if frontend_url:
     allowed_origins.append(frontend_url)
 
-# 允許所有 vercel.app 子網域
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
-    allow_origin_regex=r"https://.*\.vercel\.app",
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["POST", "GET"],  # 只允許需要的方法
+    allow_headers=["Content-Type"],  # 只允許需要的 headers
 )
 
 
