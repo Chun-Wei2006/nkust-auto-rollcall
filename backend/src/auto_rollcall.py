@@ -14,9 +14,8 @@ logging.basicConfig(level=logging.INFO)
 class AutoRollcall:
     """
     自動點名類別
-    1. 登入 Moocs 網站
-    2. 訪問 Rollcall 頁面
-    3. 自動完成點名
+    1. 訪問 Rollcall 頁面
+    2. 自動完成點名
     """
 
     def __init__(self, username: str, password: str):
@@ -55,7 +54,7 @@ class AutoRollcall:
         訪問 Rollcall 頁面並完成點名
 
         Args:
-            rollcall_goto: rollcall 的 goto 參數（從 robot.py 中獲取）
+            rollcall_goto: rollcall 的 goto 參數
         """
         if self.page is None:
             raise RuntimeError("Browser not started. Call start_browser() first.")
@@ -63,17 +62,17 @@ class AutoRollcall:
         logging.info(f"步驟 2: 訪問 Rollcall 頁面")
 
         # 構建 rollcall URL
-        if rollcall_goto:
-            rollcall_url = f"https://elearning.nkust.edu.tw/mooc/teach/rollcall/start.php?goto={rollcall_goto}"
-        else:
-            # 使用預設 URL
-            rollcall_url = "https://elearning.nkust.edu.tw/mooc/teach/rollcall/start.php"
+        rollcall_url = f"https://elearning.nkust.edu.tw/mooc/teach/rollcall/start.php?goto={rollcall_goto}"
 
         logging.info(f"訪問 Rollcall URL: {rollcall_url}")
         self.page.goto(rollcall_url, wait_until='domcontentloaded')
+        self.page.wait_for_load_state('networkidle')
 
-        final_url = self.page.url
-        logging.info(f"當前 URL: {final_url}")
+        # 填寫登入資訊
+        logging.info("填寫登入資訊...")
+        self.page.fill('#username', self.username)
+        self.page.fill('#password', self.password)
+        self.page.click("text=登入")
 
         return True
 
@@ -87,6 +86,7 @@ class AutoRollcall:
         Returns:
             dict: 包含 success 狀態和 elapsed_time 執行時間（秒）
         """
+
         start_time = time.time()
 
         try:
