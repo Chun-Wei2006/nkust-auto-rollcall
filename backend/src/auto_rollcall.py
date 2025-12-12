@@ -70,29 +70,34 @@ class AutoRollcall:
         logging.info(f"訪問 Rollcall URL: {rollcall_url}")
         self.page.goto(rollcall_url, wait_until='domcontentloaded')
         self.page.wait_for_load_state('networkidle')
-
-        # 填寫登入資訊
-        logging.info("填寫登入資訊...")
-        self.page.fill('#username', self.username)
-        self.page.fill('#password', self.password)
-        self.page.click("text=登入")
-
-        # 等待頁面載入完成
-        self.page.wait_for_load_state('networkidle')
-
-        # 取得頁面文字內容來判斷結果
-        page_content = self.page.content()
-
-        # 判斷點名結果
-        if "完成報到" in page_content:
-            logging.info("✅ 點名成功：完成報到")
-            return {"success": True, "message": "完成報到"}
-        elif "點名時間已結束" in page_content:
-            logging.warning("⚠️ 點名失敗：點名時間已結束")
-            return {"success": False, "message": "點名時間已結束"}
+        
+        #請重新掃描螢幕上的QRcode圖示
+        if "請重新掃描" in self.page.content():
+            logging.warning("⚠️ 點名失敗:請重新掃描螢幕上的QRcode圖示")
+            return {"success": False, "message": "請重新掃描螢幕上的QRcode圖示"}
         else:
-            logging.warning("⚠️ 無法判斷點名結果")
-            return {"success": False, "message": "無法判斷點名結果"}
+            # 填寫登入資訊
+            logging.info("填寫登入資訊...")
+            self.page.fill('#username', self.username)
+            self.page.fill('#password', self.password)
+            self.page.click("text=登入")
+
+            # 等待頁面載入完成
+            self.page.wait_for_load_state('networkidle')
+
+            # 取得頁面文字內容來判斷結果
+            page_content = self.page.content()
+
+            # 判斷點名結果
+            if "完成報到" in page_content:
+                logging.info("✅ 點名成功：完成報到")
+                return {"success": True, "message": "完成報到"}
+            elif "點名時間已結束" in page_content:
+                logging.warning("⚠️ 點名失敗：點名時間已結束")
+                return {"success": False, "message": "點名時間已結束"}
+            else:
+                logging.warning("⚠️ 無法判斷點名結果")
+                return {"success": False, "message": "無法判斷點名結果"}
 
     def run(self, rollcall_goto=None):
         """
@@ -143,7 +148,6 @@ def main():
         return
 
     rollcall_goto = "MeFqUN8kZvb5_xwEVC2T5uODl81snEJSATBNaZsAOXl5u0VRYIupsJ9VFc_9gHzjj8ZXR0N0keLm6c6OmhZ82A~~"
-
     # 建立自動點名實例
     auto_rollcall = AutoRollcall(username, password)
 
