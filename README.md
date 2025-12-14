@@ -8,14 +8,13 @@
 
 | 服務 | 網址 |
 |------|------|
-| **前端網站** | https://frontend-49ewhhwru-bryans-projects-da655399.vercel.app |
+| **前端網站** | https://frontend-alpha-rosy-16.vercel.app/ |
 | **後端 API** | https://nkust-auto-rollcall.onrender.com |
 
-> **注意**：後端使用 Render 免費方案，閒置 15 分鐘後會休眠，首次請求可能需要等待 30-60 秒喚醒。
 
 ## 功能特色
 
-- **自動點名**：自動登入 NKUST Moocs 平台並完成課堂點名
+- **自動點名**：自動登入平台並完成課堂點名
 - **QR Code 掃描**：支援掃描教室 QR Code 快速取得點名參數
 - **多帳號管理**：可儲存多組帳號，支援別名設定方便辨識
 - **本地儲存**：帳號資料僅存於瀏覽器 localStorage，不上傳伺服器
@@ -65,7 +64,7 @@ nkust-auto-rollcall/
 
 ### 線上使用
 
-1. 開啟 [前端網站](https://frontend-49ewhhwru-bryans-projects-da655399.vercel.app)
+1. 開啟 [前端網站](https://frontend-alpha-rosy-16.vercel.app/)
 2. 輸入學號與密碼
 3. 掃描教室 QR Code 或手動輸入點名參數
 4. 點擊「開始點名」按鈕
