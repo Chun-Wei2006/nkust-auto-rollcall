@@ -1,20 +1,23 @@
 # NKUST 自動點名系統
 
-國立高雄科技大學 Moocs 線上學習平台自動點名工具。
+![CI](https://github.com/Chun-Wei2006/nkust-auto-rollcall/actions/workflows/ci.yml/badge.svg)
+
+國立高雄科技大學自動點名工具。
 
 ## 線上體驗
 
 | 服務 | 網址 |
 |------|------|
-| **前端網站** | https://frontend-49ewhhwru-bryans-projects-da655399.vercel.app |
-| **後端 API** | https://nkust-auto-rollcall.onrender.com |
+| **前端網站** | https://frontend-alpha-rosy-16.vercel.app/ |
+| **後端 API** | https://api.rollcall0.dpdns.org |
 
-> **注意**：後端使用 Render 免費方案，閒置 15 分鐘後會休眠，首次請求可能需要等待 30-60 秒喚醒。
 
 ## 功能特色
 
-- **自動點名**：自動登入 NKUST Moocs 平台並完成課堂點名
+- **自動點名**：自動登入平台並完成課堂點名
 - **QR Code 掃描**：支援掃描教室 QR Code 快速取得點名參數
+- **多帳號管理**：可儲存多組帳號，支援別名設定方便辨識
+- **本地儲存**：帳號資料僅存於瀏覽器 localStorage，不上傳伺服器
 - **Web 介面**：友善的網頁操作介面，支援深色模式
 - **REST API**：提供 API 端點供外部程式呼叫
 
@@ -61,7 +64,7 @@ nkust-auto-rollcall/
 
 ### 線上使用
 
-1. 開啟 [前端網站](https://frontend-49ewhhwru-bryans-projects-da655399.vercel.app)
+1. 開啟 [前端網站](https://frontend-alpha-rosy-16.vercel.app/)
 2. 輸入學號與密碼
 3. 掃描教室 QR Code 或手動輸入點名參數
 4. 點擊「開始點名」按鈕
@@ -128,6 +131,19 @@ FRONTEND_URL=https://your-frontend-url.com
 
 ## API 文件
 
+### GET `/`
+
+健康檢查端點。
+
+**回應：**
+
+```json
+{
+  "status": "ok",
+  "message": "NKUST Auto Rollcall API is running"
+}
+```
+
 ### POST `/rollcall/`
 
 執行自動點名。
@@ -147,7 +163,8 @@ FRONTEND_URL=https://your-frontend-url.com
 ```json
 {
   "success": true,
-  "message": "點名成功"
+  "message": "點名成功",
+  "elapsed_time": 12.34
 }
 ```
 
@@ -198,6 +215,15 @@ vercel --prod
 - 本工具僅供學習與研究用途
 - 請確保在上課時間內使用，以符合學校點名規定
 - 帳號密碼僅在本地處理，不會儲存或傳送至第三方
+
+## 貢獻指南
+
+歡迎貢獻！請參閱 [CONTRIBUTING.md](CONTRIBUTING.md) 了解：
+
+- 分支命名規範（`feature/*`、`fix/*`、`hotfix/*`）
+- Git Flow 開發流程
+- Commit message 格式
+- 版本號規範（Semantic Versioning）
 
 ## 授權條款
 
