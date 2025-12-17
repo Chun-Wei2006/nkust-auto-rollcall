@@ -2,14 +2,14 @@
 
 ![CI](https://github.com/Chun-Wei2006/nkust-auto-rollcall/actions/workflows/ci.yml/badge.svg)
 
-國立高雄科技大學 Moocs 線上學習平台自動點名工具。
+國立高雄科技大學自動點名工具。
 
 ## 線上體驗
 
 | 服務 | 網址 |
 |------|------|
 | **前端網站** | https://frontend-alpha-rosy-16.vercel.app/ |
-| **後端 API** | https://nkust-auto-rollcall.onrender.com |
+| **後端 API** | https://api.rollcall0.dpdns.org |
 
 
 ## 功能特色
