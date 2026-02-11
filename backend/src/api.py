@@ -51,7 +51,6 @@ def rollcall(request: RollcallRequest) -> RollcallResponse:
     auto_rollcall = AutoRollcall(request.username, request.password)
 
     try:
-        auto_rollcall.start_browser(headless=True)
         result = auto_rollcall.run(rollcall_goto=request.rollcall_goto)
 
         return RollcallResponse(
