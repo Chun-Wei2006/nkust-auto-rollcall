@@ -1,6 +1,7 @@
 import os
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from mangum import Mangum
 from pydantic import BaseModel
 
 from .auto_rollcall import AutoRollcall
@@ -63,3 +64,6 @@ def rollcall(request: RollcallRequest) -> RollcallResponse:
         raise HTTPException(status_code=500, detail=str(e))
     finally:
         auto_rollcall.close()
+
+
+handler = Mangum(app)
