@@ -1,15 +1,17 @@
 """
 NKUST 自動點名系統
-先登入 Moocs 網站，然後自動訪問 Rollcall 頁面完成點名
+訪問 Rollcall 頁面，提交帳密表單完成點名
 """
 import os
+import re
 import time
 import logging
 from dotenv import load_dotenv
-from playwright.sync_api import sync_playwright, Playwright, Browser, Page
+import requests
 
 load_dotenv(override=True)
-logging.basicConfig(level=logging.INFO) 
+logging.basicConfig(level=logging.INFO)
+
 
 class AutoRollcall:
     """
@@ -21,33 +23,7 @@ class AutoRollcall:
     def __init__(self, username: str, password: str):
         self.username = username
         self.password = password
-        self.playwright: Playwright | None = None
-        self.browser: Browser | None = None
-        self.page: Page | None = None
-
-    def start_browser(self, headless=True):
-        logging.info("啟動瀏覽器...")
-        self.playwright = sync_playwright().start()
-        self.browser = self.playwright.chromium.launch(
-            headless=headless,
-            args=[
-                '--disable-gpu',
-                '--disable-dev-shm-usage',
-                '--disable-extensions',
-                '--no-sandbox',
-                '--disable-background-networking',
-                '--disable-sync',
-                '--disable-translate',
-                '--metrics-recording-only',
-                '--mute-audio',
-                '--no-first-run',
-                '--safebrowsing-disable-auto-update',
-            ]
-        )
-        # 建立輕量化頁面，阻擋不必要的資源
-        self.page = self.browser.new_page()
-        self.page.route("**/*.{png,jpg,jpeg,gif,webp,svg,ico}", lambda route: route.abort())
-        self.page.route("**/*.{woff,woff2,ttf,otf}", lambda route: route.abort())
+        self.session = requests.Session()
 
     def visit_rollcall(self, rollcall_goto: str | None) -> dict:
         """
@@ -59,45 +35,73 @@ class AutoRollcall:
         Returns:
             dict: 包含 success 狀態和 message 訊息
         """
-        if self.page is None:
-            raise RuntimeError("Browser not started. Call start_browser() first.")
+        logging.info("訪問 Rollcall 頁面")
 
-        logging.info(f"訪問 Rollcall 頁面")
-
-        # 構建 rollcall URL
         rollcall_url = f"https://elearning.nkust.edu.tw/mooc/teach/rollcall/start.php?goto={rollcall_goto}"
 
         logging.info(f"訪問 Rollcall URL: {rollcall_url}")
-        self.page.goto(rollcall_url, wait_until='domcontentloaded')
-        self.page.wait_for_load_state('networkidle')
-        
-        #請重新掃描螢幕上的QRcode圖示
-        if "請重新掃描" in self.page.content():
+        resp = self.session.get(rollcall_url)
+        resp.raise_for_status()
+        page_content = resp.text
+
+        # 檢查是否直接包含結果文字（不需登入）
+        if "請重新掃描" in page_content:
+            logging.warning("⚠️ 點名失敗:請重新掃描螢幕上的QRcode圖示")
+            return {"success": False, "message": "請重新掃描螢幕上的QRcode圖示"}
+
+        if "完成報到" in page_content:
+            logging.info("✅ 點名成功：完成報到")
+            return {"success": True, "message": "完成報到"}
+
+        if "點名時間已結束" in page_content:
+            logging.warning("⚠️ 點名失敗：點名時間已結束")
+            return {"success": False, "message": "點名時間已結束"}
+
+        # 需要登入：解析表單 action 和隱藏欄位
+        logging.info("填寫登入資訊...")
+
+        # 解析 form action
+        action_match = re.search(r'<form[^>]*action=["\']([^"\']*)["\']', page_content, re.IGNORECASE)
+        form_action = action_match.group(1) if action_match else rollcall_url
+
+        # 若 action 是相對路徑，轉換為絕對路徑
+        if form_action and not form_action.startswith("http"):
+            from urllib.parse import urljoin
+            form_action = urljoin(rollcall_url, form_action)
+
+        # 解析所有隱藏欄位
+        hidden_fields = re.findall(
+            r'<input[^>]*type=["\']hidden["\'][^>]*name=["\']([^"\']*)["\'][^>]*value=["\']([^"\']*)["\']',
+            page_content, re.IGNORECASE
+        )
+        # 也處理 name 在 type 前面的情況
+        hidden_fields += re.findall(
+            r'<input[^>]*name=["\']([^"\']*)["\'][^>]*type=["\']hidden["\'][^>]*value=["\']([^"\']*)["\']',
+            page_content, re.IGNORECASE
+        )
+
+        form_data = {name: value for name, value in hidden_fields}
+        form_data["username"] = self.username
+        form_data["password"] = self.password
+
+        # 提交登入表單
+        resp = self.session.post(form_action, data=form_data)
+        resp.raise_for_status()
+        page_content = resp.text
+
+        # 判斷點名結果
+        if "完成報到" in page_content:
+            logging.info("✅ 點名成功：完成報到")
+            return {"success": True, "message": "完成報到"}
+        elif "點名時間已結束" in page_content:
+            logging.warning("⚠️ 點名失敗：點名時間已結束")
+            return {"success": False, "message": "點名時間已結束"}
+        elif "請重新掃描" in page_content:
             logging.warning("⚠️ 點名失敗:請重新掃描螢幕上的QRcode圖示")
             return {"success": False, "message": "請重新掃描螢幕上的QRcode圖示"}
         else:
-            # 填寫登入資訊
-            logging.info("填寫登入資訊...")
-            self.page.fill('#username', self.username)
-            self.page.fill('#password', self.password)
-            self.page.click("text=登入")
-
-            # 等待頁面載入完成
-            self.page.wait_for_load_state('networkidle')
-
-            # 取得頁面文字內容來判斷結果
-            page_content = self.page.content()
-
-            # 判斷點名結果
-            if "完成報到" in page_content:
-                logging.info("✅ 點名成功：完成報到")
-                return {"success": True, "message": "完成報到"}
-            elif "點名時間已結束" in page_content:
-                logging.warning("⚠️ 點名失敗：點名時間已結束")
-                return {"success": False, "message": "點名時間已結束"}
-            else:
-                logging.warning("⚠️ 無法判斷點名結果")
-                return {"success": False, "message": "無法判斷點名結果"}
+            logging.warning("⚠️ 無法判斷點名結果")
+            return {"success": False, "message": "無法判斷點名結果"}
 
     def run(self, rollcall_goto=None):
         """
@@ -129,17 +133,13 @@ class AutoRollcall:
             return {"success": False, "message": str(e), "elapsed_time": elapsed_time}
 
     def close(self):
-        """關閉瀏覽器"""
-        if self.browser:
-            self.browser.close()
-        if self.playwright:
-            self.playwright.stop()
-        logging.info("瀏覽器已關閉")
+        """關閉 HTTP session"""
+        self.session.close()
+        logging.info("HTTP session 已關閉")
 
 
 def main():
     """主程式"""
-    # 從環境變數讀取帳號密碼
     username = os.getenv("USERNAME")
     password = os.getenv("PASSWORD")
 
@@ -148,14 +148,9 @@ def main():
         return
 
     rollcall_goto = "MeFqUN8kZvb5_xwEVC2T5uODl81snEJSATBNaZsAOXl5u0VRYIupsJ9VFc_9gHzjj8ZXR0N0keLm6c6OmhZ82A~~"
-    # 建立自動點名實例
     auto_rollcall = AutoRollcall(username, password)
 
     try:
-        # 啟動瀏覽器
-        auto_rollcall.start_browser(headless=False)
-
-        # 執行自動點名
         result = auto_rollcall.run(rollcall_goto=rollcall_goto)
 
         if result["success"]:
