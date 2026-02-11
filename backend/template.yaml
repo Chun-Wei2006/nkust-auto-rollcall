@@ -1,0 +1,32 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+
+Globals:
+  Function:
+    Timeout: 30
+    MemorySize: 128
+
+Resources:
+  RollcallFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src.api.handler
+      Runtime: python3.11
+      CodeUri: .
+      Environment:
+        Variables:
+          FRONTEND_URL: !Ref FrontendUrl
+      Events:
+        ApiGateway:
+          Type: HttpApi
+
+Parameters:
+  FrontendUrl:
+    Type: String
+    Default: ""
+    Description: Frontend URL for CORS
+
+Outputs:
+  ApiUrl:
+    Description: API Gateway URL
+    Value: !Sub "https://${ServerlessHttpApi}.execute-api.${AWS::Region}.amazonaws.com"
