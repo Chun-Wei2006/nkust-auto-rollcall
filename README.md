@@ -21,6 +21,36 @@
 - **Web 介面**：友善的網頁操作介面，支援深色模式
 - **REST API**：提供 API 端點供外部程式呼叫
 
+## 自動登入原理
+
+後端使用純 HTTP 請求模擬瀏覽器的登入流程，不需要啟動真實瀏覽器：
+
+### 登入流程
+
+```
+1. GET  點名頁面 (start.php?goto=...)
+   └─ 伺服器 redirect 到登入頁 (login.php?goto=...)
+   └─ 取得 HTML 表單，解析 form action 和隱藏欄位 (login_key, rollcallGoto 等)
+
+2. 密碼加密（複製前端 JS 的加密邏輯）
+   └─ md5_hex  = MD5(password)
+   └─ des_key  = md5_hex[:4] + login_key[:4]    # 8 bytes DES key
+   └─ encrypt_pwd = Base64( DES_ECB(des_key, password) )
+
+3. POST 登入表單到 /login.php
+   └─ 帶上 username, password, encrypt_pwd, login_key, rollcallGoto 等欄位
+   └─ 伺服器回應 Refresh header（非 302 redirect）指向結果頁
+
+4. Follow Refresh header，GET 結果頁面
+   └─ 解析回應內容判斷點名結果：完成報到 / 點名時間已結束 / 請重新掃描
+```
+
+### 技術細節
+
+- **密碼加密**：NKUST 教學平台前端使用 JS 進行 DES 加密後才提交密碼，後端用 `pycryptodome` 實作相同邏輯
+- **Refresh Header**：伺服器登入後用 `Refresh: 0; URL="..."` 跳轉（不是標準 302），`requests` 不會自動 follow，需手動處理
+- **User-Agent**：伺服器會擋非瀏覽器的請求，需帶瀏覽器 User-Agent header
+
 ## 專案架構
 
 本專案採用 **Monorepo** 架構，分為前端與後端兩個部分：
@@ -53,12 +83,14 @@ nkust-auto-rollcall/
 
 ### 後端
 - **FastAPI** - Python Web 框架
-- **Playwright** - 瀏覽器自動化
+- **requests** - HTTP 客戶端（純 HTTP 請求，無需瀏覽器）
+- **pycryptodome** - DES 密碼加密
+- **Mangum** - AWS Lambda ASGI 適配器
 - **Uvicorn** - ASGI 伺服器
 
 ### 部署平台
 - **Vercel** - 前端託管
-- **Render** - 後端託管
+- **AWS Lambda + API Gateway** - 後端託管（ap-northeast-1）
 
 ## 使用方式
 
@@ -81,7 +113,7 @@ nkust-auto-rollcall/
 ### 環境需求
 
 - Node.js 18+
-- Python 3.8+
+- Python 3.12+
 - npm 或 yarn
 
 ### 後端設定
@@ -90,11 +122,12 @@ nkust-auto-rollcall/
 # 進入後端目錄
 cd backend
 
+# 建立虛擬環境
+python -m venv .venv
+source .venv/bin/activate  # Windows: .venv\Scripts\activate
+
 # 安裝 Python 套件
 pip install -r requirements.txt
-
-# 安裝 Playwright 瀏覽器
-playwright install chromium
 
 # 啟動 API 伺服器
 uvicorn src.api:app --reload --host 0.0.0.0 --port 8000
@@ -163,8 +196,8 @@ FRONTEND_URL=https://your-frontend-url.com
 ```json
 {
   "success": true,
-  "message": "點名成功",
-  "elapsed_time": 12.34
+  "message": "完成報到",
+  "elapsed_time": 0.79
 }
 ```
 
@@ -172,7 +205,9 @@ FRONTEND_URL=https://your-frontend-url.com
 
 ```json
 {
-  "detail": "登入失敗"
+  "success": false,
+  "message": "點名時間已結束",
+  "elapsed_time": 0.74
 }
 ```
 
@@ -198,17 +233,15 @@ uvicorn src.api:app            # 生產模式
 
 ### 前端（Vercel）
 
-```bash
-cd frontend
-vercel --prod
-```
+推送到 `main` 分支時自動部署。
 
-### 後端（Render）
+### 後端（AWS Lambda）
 
-1. 連接 GitHub 專案到 Render
-2. 設定 Root Directory 為 `backend`
-3. Build Command: `pip install -r requirements.txt && playwright install chromium && playwright install-deps`
-4. Start Command: `uvicorn src.api:app --host 0.0.0.0 --port $PORT`
+推送到 `main` 分支時，GitHub Actions 自動執行 `sam build` + `sam deploy`。
+
+需要設定 GitHub Secrets：
+- `AWS_ACCESS_KEY_ID`
+- `AWS_SECRET_ACCESS_KEY`
 
 ## 注意事項
 

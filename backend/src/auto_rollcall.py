@@ -5,12 +5,37 @@ NKUST 自動點名系統
 import os
 import re
 import time
+import hashlib
+import base64
 import logging
+from urllib.parse import urljoin
+
+from Crypto.Cipher import DES
 from dotenv import load_dotenv
 import requests
 
 load_dotenv(override=True)
 logging.basicConfig(level=logging.INFO)
+
+
+def encrypt_password(password: str, login_key: str) -> str:
+    """
+    複製前端 JS 的密碼加密邏輯：
+    md5key = MD5(password)
+    cypkey = md5key[:4] + login_key[:4]
+    encrypt_pwd = base64(DES_ECB(cypkey, password))
+    """
+    md5key = hashlib.md5(password.encode()).hexdigest()
+    cypkey = (md5key[:4] + login_key[:4]).encode("ascii")
+
+    cipher = DES.new(cypkey, DES.MODE_ECB)
+
+    pwd_bytes = password.encode("ascii")
+    pad_len = 8 - (len(pwd_bytes) % 8) if len(pwd_bytes) % 8 != 0 else 0
+    pwd_padded = pwd_bytes + b"\x00" * pad_len
+
+    encrypted = cipher.encrypt(pwd_padded)
+    return base64.b64encode(encrypted).decode()
 
 
 class AutoRollcall:
@@ -24,6 +49,9 @@ class AutoRollcall:
         self.username = username
         self.password = password
         self.session = requests.Session()
+        self.session.headers.update({
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+        })
 
     def visit_rollcall(self, rollcall_goto: str | None) -> dict:
         """
@@ -45,17 +73,9 @@ class AutoRollcall:
         page_content = resp.text
 
         # 檢查是否直接包含結果文字（不需登入）
-        if "請重新掃描" in page_content:
-            logging.warning("⚠️ 點名失敗:請重新掃描螢幕上的QRcode圖示")
-            return {"success": False, "message": "請重新掃描螢幕上的QRcode圖示"}
-
-        if "完成報到" in page_content:
-            logging.info("✅ 點名成功：完成報到")
-            return {"success": True, "message": "完成報到"}
-
-        if "點名時間已結束" in page_content:
-            logging.warning("⚠️ 點名失敗：點名時間已結束")
-            return {"success": False, "message": "點名時間已結束"}
+        result = self._check_result(page_content)
+        if result:
+            return result
 
         # 需要登入：解析表單 action 和隱藏欄位
         logging.info("填寫登入資訊...")
@@ -66,7 +86,6 @@ class AutoRollcall:
 
         # 若 action 是相對路徑，轉換為絕對路徑
         if form_action and not form_action.startswith("http"):
-            from urllib.parse import urljoin
             form_action = urljoin(rollcall_url, form_action)
 
         # 解析所有隱藏欄位
@@ -81,27 +100,51 @@ class AutoRollcall:
         )
 
         form_data = {name: value for name, value in hidden_fields}
+
+        # 前端 JS 會用 DES 加密密碼，伺服器端驗證 encrypt_pwd
+        login_key = form_data.get("login_key", "")
+        if not login_key:
+            raise ValueError("登入頁面缺少 login_key，無法加密密碼")
+        form_data["encrypt_pwd"] = encrypt_password(self.password, login_key)
         form_data["username"] = self.username
+        # 前端表單同時送出明文 password 和 encrypt_pwd，伺服器端以 encrypt_pwd 驗證
         form_data["password"] = self.password
 
         # 提交登入表單
         resp = self.session.post(form_action, data=form_data)
         resp.raise_for_status()
+
+        # 伺服器用 Refresh header 跳轉（非 302），需手動 follow
+        refresh = resp.headers.get("Refresh", "")
+        refresh_match = re.search(r'URL="([^"]+)"', refresh)
+        if refresh_match:
+            redirect_url = refresh_match.group(1)
+            logging.info(f"Follow Refresh header: {redirect_url}")
+            resp = self.session.get(redirect_url)
+            resp.raise_for_status()
+
         page_content = resp.text
 
         # 判斷點名結果
+        result = self._check_result(page_content)
+        if result:
+            return result
+
+        logging.warning("⚠️ 無法判斷點名結果")
+        return {"success": False, "message": "無法判斷點名結果"}
+
+    def _check_result(self, page_content: str) -> dict | None:
+        """檢查頁面是否包含點名結果"""
         if "完成報到" in page_content:
             logging.info("✅ 點名成功：完成報到")
             return {"success": True, "message": "完成報到"}
-        elif "點名時間已結束" in page_content:
+        if "點名時間已結束" in page_content:
             logging.warning("⚠️ 點名失敗：點名時間已結束")
             return {"success": False, "message": "點名時間已結束"}
-        elif "請重新掃描" in page_content:
+        if "請重新掃描" in page_content:
             logging.warning("⚠️ 點名失敗:請重新掃描螢幕上的QRcode圖示")
             return {"success": False, "message": "請重新掃描螢幕上的QRcode圖示"}
-        else:
-            logging.warning("⚠️ 無法判斷點名結果")
-            return {"success": False, "message": "無法判斷點名結果"}
+        return None
 
     def run(self, rollcall_goto=None):
         """
