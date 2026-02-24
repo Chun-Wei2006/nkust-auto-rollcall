@@ -103,8 +103,11 @@ class AutoRollcall:
 
         # 前端 JS 會用 DES 加密密碼，伺服器端驗證 encrypt_pwd
         login_key = form_data.get("login_key", "")
+        if not login_key:
+            raise ValueError("登入頁面缺少 login_key，無法加密密碼")
         form_data["encrypt_pwd"] = encrypt_password(self.password, login_key)
         form_data["username"] = self.username
+        # 前端表單同時送出明文 password 和 encrypt_pwd，伺服器端以 encrypt_pwd 驗證
         form_data["password"] = self.password
 
         # 提交登入表單
@@ -113,8 +116,9 @@ class AutoRollcall:
 
         # 伺服器用 Refresh header 跳轉（非 302），需手動 follow
         refresh = resp.headers.get("Refresh", "")
-        if "URL=" in refresh:
-            redirect_url = refresh.split('URL="')[1].rstrip('"')
+        refresh_match = re.search(r'URL="([^"]+)"', refresh)
+        if refresh_match:
+            redirect_url = refresh_match.group(1)
             logging.info(f"Follow Refresh header: {redirect_url}")
             resp = self.session.get(redirect_url)
             resp.raise_for_status()
