@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 
 export interface Account {
   id: string;
@@ -11,24 +11,22 @@ export interface Account {
 
 const STORAGE_KEY = "nkust_accounts";
 
-// 從 localStorage 載入帳號（lazy initialization）
-function loadAccountsFromStorage(): Account[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
-      return JSON.parse(stored);
-    }
-  } catch (error) {
-    console.error("Failed to load accounts:", error);
-  }
-  return [];
-}
-
 export function useAccounts() {
-  const [accounts, setAccounts] = useState<Account[]>(loadAccountsFromStorage);
-  // lazy initialization 會同步載入，所以直接標記為已載入
-  const isLoaded = true;
+  const [accounts, setAccounts] = useState<Account[]>([]);
+  const [isLoaded, setIsLoaded] = useState(false);
+
+  // client 端才從 localStorage 載入，避免 hydration mismatch
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      if (stored) {
+        setAccounts(JSON.parse(stored));
+      }
+    } catch (error) {
+      console.error("Failed to load accounts:", error);
+    }
+    setIsLoaded(true);
+  }, []);
 
   // 儲存帳號到 localStorage
   const saveAccounts = useCallback((newAccounts: Account[]) => {

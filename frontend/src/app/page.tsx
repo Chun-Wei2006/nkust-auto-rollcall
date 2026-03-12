@@ -23,6 +23,8 @@ export default function Home() {
   const [results, setResults] = useState<RollcallResult[]>([]);
   const [showAccountManager, setShowAccountManager] = useState(false);
 
+  const [importMessage, setImportMessage] = useState<string | null>(null);
+
   // 手動輸入的單一帳號（用於未儲存帳號時的點名）
   const [manualUsername, setManualUsername] = useState("");
   const [manualPassword, setManualPassword] = useState("");
@@ -37,7 +39,46 @@ export default function Home() {
     }
   };
 
+  const handleImportAccounts = (data: string): boolean => {
+    if (!data.startsWith("nkust-import:")) return false;
+
+    try {
+      const payload = data.slice("nkust-import:".length);
+      const binStr = atob(payload);
+      const bytes = Uint8Array.from(binStr, (c) => c.codePointAt(0)!);
+      const decoded = JSON.parse(new TextDecoder().decode(bytes)) as Array<{
+        u: string;
+        p: string;
+        l?: string;
+      }>;
+
+      const existingUsernames = new Set(accounts.map((a) => a.username));
+      let count = 0;
+
+      for (const item of decoded) {
+        if (item.u && item.p && !existingUsernames.has(item.u)) {
+          addAccount(item.u, item.p, item.l);
+          existingUsernames.add(item.u);
+          count++;
+        }
+      }
+
+      setImportMessage(
+        count > 0 ? `已匯入 ${count} 個帳號` : "所有帳號已存在，無需匯入"
+      );
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
   const handleScan = (data: string) => {
+    // 偵測帳號匯入 QR Code
+    if (handleImportAccounts(data)) {
+      setShowScanner(false);
+      return;
+    }
+
     const gotoParam = extractGotoParam(data);
     if (gotoParam) {
       setRollcallGoto(gotoParam);
@@ -162,6 +203,20 @@ export default function Home() {
           </div>
         ) : (
           <div className="space-y-4">
+            {/* 匯入通知 */}
+            {importMessage && (
+              <div className="rounded-lg bg-blue-100 p-3 text-sm text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+                {importMessage}
+                <button
+                  type="button"
+                  onClick={() => setImportMessage(null)}
+                  className="ml-2 font-medium underline"
+                >
+                  關閉
+                </button>
+              </div>
+            )}
+
             {/* Rollcall Goto 輸入區 */}
             <div>
               <label className="mb-1 block text-sm font-medium text-zinc-700 dark:text-zinc-300">

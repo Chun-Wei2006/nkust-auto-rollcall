@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { QRCodeSVG } from "qrcode.react";
 import { Account } from "@/hooks/useAccounts";
 
 interface AccountManagerProps {
@@ -18,6 +19,7 @@ export default function AccountManager({
   onRemove,
   onClear,
 }: AccountManagerProps) {
+  const [showShareQR, setShowShareQR] = useState(false);
   const [isAdding, setIsAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
@@ -46,6 +48,18 @@ export default function AccountManager({
     resetForm();
   };
 
+  const generateShareData = (): string => {
+    const data = accounts.map((a) => ({
+      u: a.username,
+      p: a.password,
+      ...(a.label && { l: a.label }),
+    }));
+    const jsonStr = JSON.stringify(data);
+    const bytes = new TextEncoder().encode(jsonStr);
+    const binStr = Array.from(bytes, (b) => String.fromCodePoint(b)).join("");
+    return "nkust-import:" + btoa(binStr);
+  };
+
   const startEdit = (account: Account) => {
     setEditingId(account.id);
     setFormData({
@@ -64,17 +78,26 @@ export default function AccountManager({
         </h3>
         <div className="flex gap-2">
           {accounts.length > 0 && (
-            <button
-              type="button"
-              onClick={() => {
-                if (confirm("確定要清除所有帳號嗎？")) {
-                  onClear();
-                }
-              }}
-              className="text-xs text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
-            >
-              清除全部
-            </button>
+            <>
+              <button
+                type="button"
+                onClick={() => setShowShareQR(!showShareQR)}
+                className="text-xs text-green-600 hover:text-green-700 dark:text-green-400 dark:hover:text-green-300"
+              >
+                {showShareQR ? "隱藏 QR" : "分享"}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (confirm("確定要清除所有帳號嗎？")) {
+                    onClear();
+                  }
+                }}
+                className="text-xs text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
+              >
+                清除全部
+              </button>
+            </>
           )}
           <button
             type="button"
@@ -88,6 +111,16 @@ export default function AccountManager({
           </button>
         </div>
       </div>
+
+      {/* 分享 QR Code */}
+      {showShareQR && accounts.length > 0 && (
+        <div className="mb-3 flex flex-col items-center rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-600 dark:bg-zinc-700">
+          <QRCodeSVG value={generateShareData()} size={200} />
+          <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
+            掃描此 QR Code 匯入 {accounts.length} 個帳號
+          </p>
+        </div>
+      )}
 
       {/* 帳號列表 */}
       {accounts.length > 0 && (
