@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useCallback, useSyncExternalStore } from "react";
 
 export interface Account {
   id: string;
@@ -11,29 +11,53 @@ export interface Account {
 
 const STORAGE_KEY = "nkust_accounts";
 
-export function useAccounts() {
-  const [accounts, setAccounts] = useState<Account[]>([]);
-  const [isLoaded, setIsLoaded] = useState(false);
-
-  // client 端才從 localStorage 載入，避免 hydration mismatch
-  useEffect(() => {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) {
-        setAccounts(JSON.parse(stored));
-      }
-    } catch (error) {
-      console.error("Failed to load accounts:", error);
+function loadAccountsFromStorage(): Account[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored) {
+      return JSON.parse(stored);
     }
-    setIsLoaded(true);
-  }, []);
+  } catch (error) {
+    console.error("Failed to load accounts:", error);
+  }
+  return [];
+}
+
+// 用 useSyncExternalStore 避免 hydration mismatch 和 setState-in-effect
+let cachedAccounts = loadAccountsFromStorage();
+const listeners = new Set<() => void>();
+
+function subscribe(callback: () => void) {
+  listeners.add(callback);
+  return () => listeners.delete(callback);
+}
+
+function getSnapshot(): Account[] {
+  return cachedAccounts;
+}
+
+function getServerSnapshot(): Account[] {
+  return [];
+}
+
+function emitChange() {
+  for (const listener of listeners) {
+    listener();
+  }
+}
+
+export function useAccounts() {
+  const accounts = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
+  const isLoaded = true;
 
   // 儲存帳號到 localStorage
   const saveAccounts = useCallback((newAccounts: Account[]) => {
-    setAccounts(newAccounts);
+    cachedAccounts = newAccounts;
     if (typeof window !== "undefined") {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(newAccounts));
     }
+    emitChange();
   }, []);
 
   // 新增帳號
