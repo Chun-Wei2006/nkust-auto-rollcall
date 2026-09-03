@@ -24,9 +24,6 @@ build/
 # Claude Code
 .claude/
 
-# AWS SAM
-.aws-sam/
-
 # OS
 .DS_Store
 Thumbs.db
