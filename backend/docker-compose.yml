@@ -2,15 +2,15 @@ services:
   api:
     build: .
     restart: unless-stopped
-    ports:
-      - "8000:8000"
     environment:
       - PORT=8000
-      - FRONTEND_URL=https://frontend-alpha-rosy-16.vercel.app
-    networks:
-      - tunnel-network
+      - FRONTEND_URL=${FRONTEND_URL:-https://autorollcall.chunweidev.com}
 
-networks:
-  tunnel-network:
-    name: tunnel-network
-    external: true
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run
+    environment:
+      - TUNNEL_TOKEN=${TUNNEL_TOKEN}
+    depends_on:
+      - api
