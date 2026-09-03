@@ -8,8 +8,8 @@
 
 | 服務 | 網址 |
 |------|------|
-| **前端網站** | https://frontend-alpha-rosy-16.vercel.app/ |
-| **後端 API** | https://api.rollcall0.dpdns.org |
+| **前端網站** | https://autorollcall.chunweidev.com |
+| **後端 API** | https://api.chunweidev.com |
 
 
 ## 功能特色
@@ -85,18 +85,17 @@ nkust-auto-rollcall/
 - **FastAPI** - Python Web 框架
 - **requests** - HTTP 客戶端（純 HTTP 請求，無需瀏覽器）
 - **pycryptodome** - DES 密碼加密
-- **Mangum** - AWS Lambda ASGI 適配器
 - **Uvicorn** - ASGI 伺服器
 
 ### 部署平台
 - **Vercel** - 前端託管
-- **AWS Lambda + API Gateway** - 後端託管（ap-northeast-1）
+- **Docker + Cloudflare Tunnel** - 後端託管（自架於 Proxmox VM）
 
 ## 使用方式
 
 ### 線上使用
 
-1. 開啟 [前端網站](https://frontend-alpha-rosy-16.vercel.app/)
+1. 開啟 [前端網站](https://autorollcall.chunweidev.com)
 2. 輸入學號與密碼
 3. 掃描教室 QR Code 或手動輸入點名參數
 4. 點擊「開始點名」按鈕
@@ -235,13 +234,17 @@ uvicorn src.api:app            # 生產模式
 
 推送到 `main` 分支時自動部署。
 
-### 後端（AWS Lambda）
+### 後端（Docker + Cloudflare Tunnel）
 
-推送到 `main` 分支時，GitHub Actions 自動執行 `sam build` + `sam deploy`。
+後端自架在 Proxmox VM 上，以 Docker Compose 執行 `api` 與 `cloudflared`，透過 Cloudflare Tunnel 對外提供 `https://api.chunweidev.com`。
 
-需要設定 GitHub Secrets：
-- `AWS_ACCESS_KEY_ID`
-- `AWS_SECRET_ACCESS_KEY`
+完整步驟請參閱 [backend/DEPLOY_SELFHOST.md](backend/DEPLOY_SELFHOST.md)。更新方式：
+
+```bash
+cd backend
+git pull
+docker compose up -d --build
+```
 
 ## 注意事項
 
