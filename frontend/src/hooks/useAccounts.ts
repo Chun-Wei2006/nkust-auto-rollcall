@@ -100,6 +100,32 @@ export function useAccounts() {
     saveAccounts([]);
   }, [saveAccounts]);
 
+  // 批次匯入：同學號更新密碼與別名（保留原 id），其餘新增
+  const upsertAccounts = useCallback(
+    (items: Array<Omit<Account, "id">>) => {
+      const next = [...accounts];
+      let added = 0;
+      let updated = 0;
+      for (const item of items) {
+        const idx = next.findIndex((a) => a.username === item.username);
+        if (idx >= 0) {
+          next[idx] = {
+            ...next[idx],
+            password: item.password,
+            label: item.label ?? next[idx].label,
+          };
+          updated++;
+        } else {
+          next.push({ id: crypto.randomUUID(), ...item });
+          added++;
+        }
+      }
+      saveAccounts(next);
+      return { added, updated };
+    },
+    [accounts, saveAccounts]
+  );
+
   return {
     accounts,
     isLoaded,
@@ -107,5 +133,6 @@ export function useAccounts() {
     updateAccount,
     removeAccount,
     clearAccounts,
+    upsertAccounts,
   };
 }
