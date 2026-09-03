@@ -15,9 +15,9 @@ allowed_origins = [
 ]
 
 # 從環境變數讀取前端 URL（必須明確指定，不再允許所有 vercel.app）
-frontend_url = os.getenv("FRONTEND_URL")
-if frontend_url:
-    allowed_origins.append(frontend_url)
+# 可用逗號分隔多個來源，方便同時允許正式站與 Vercel preview
+frontend_url = os.getenv("FRONTEND_URL", "")
+allowed_origins += [u.strip().rstrip("/") for u in frontend_url.split(",") if u.strip()]
 
 app.add_middleware(
     CORSMiddleware,
