@@ -54,7 +54,6 @@ export default function ZuvioPanel() {
   const [coursesByAccount, setCoursesByAccount] = useState<Record<string, ZuvioCourse[]>>({});
   const [loadingCourses, setLoadingCourses] = useState<Set<string>>(new Set());
   const [courseErrors, setCourseErrors] = useState<Record<string, string>>({});
-  const [expandedAccountId, setExpandedAccountId] = useState<string | null>(null);
 
   // 點名
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -220,14 +219,8 @@ export default function ZuvioPanel() {
     [withToken]
   );
 
-  const toggleCourse = (account: ZuvioAccount, courseId: string) => {
-    const current = new Set(account.courseIds ?? []);
-    if (current.has(courseId)) {
-      current.delete(courseId);
-    } else {
-      current.add(courseId);
-    }
-    updateAccount(account.id, { courseIds: Array.from(current) });
+  const selectCourse = (account: ZuvioAccount, courseId: string) => {
+    updateAccount(account.id, { courseId: courseId || undefined });
   };
 
   // ── 點名 ─────────────────────────────────────────────
@@ -245,8 +238,8 @@ export default function ZuvioPanel() {
                 coursesByAccount[account.id] ?? (await loadCourses(account));
               const nameOf = (id: string) =>
                 courses.find((c) => c.course_id === id)?.course_name || `課程 ${id}`;
-              let courseIds = account.courseIds?.length
-                ? account.courseIds
+              let courseIds = account.courseId
+                ? [account.courseId]
                 : courses.map((c) => c.course_id);
               if (skipDone) {
                 courseIds = courseIds.filter((id) => !doneRef.current.has(`${account.id}:${id}`));
@@ -423,8 +416,7 @@ export default function ZuvioPanel() {
           <ul className="mb-3 space-y-2">
             {accounts.map((account) => {
               const courses = coursesByAccount[account.id];
-              const expanded = expandedAccountId === account.id;
-              const picked = new Set(account.courseIds ?? []);
+              const picked = courses?.find((c) => c.course_id === account.courseId);
               return (
                 <li key={account.id} className="rounded-md bg-white p-2 dark:bg-zinc-700">
                   <div className="flex items-center justify-between">
@@ -436,7 +428,7 @@ export default function ZuvioPanel() {
                         {account.label ? account.email : ""}
                         {courses
                           ? `${account.label ? " · " : ""}${
-                              picked.size > 0 ? `監控 ${picked.size}/${courses.length} 門課` : `監控全部 ${courses.length} 門課`
+                              picked ? `監控 ${picked.course_name}` : `監控全部 ${courses.length} 門課`
                             }`
                           : ""}
                       </p>
@@ -446,7 +438,6 @@ export default function ZuvioPanel() {
                         type="button"
                         disabled={loadingCourses.has(account.id)}
                         onClick={async () => {
-                          setExpandedAccountId(account.id);
                           try {
                             await loadCourses(account);
                           } catch {
@@ -457,15 +448,6 @@ export default function ZuvioPanel() {
                       >
                         {loadingCourses.has(account.id) ? "載入中" : courses ? "重新載入" : "載入課程"}
                       </button>
-                      {courses && (
-                        <button
-                          type="button"
-                          onClick={() => setExpandedAccountId(expanded ? null : account.id)}
-                          className="rounded px-2 py-1 text-xs text-zinc-600 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-600"
-                        >
-                          {expanded ? "收合" : "選課程"}
-                        </button>
-                      )}
                       <button
                         type="button"
                         onClick={() => startEdit(account)}
@@ -505,35 +487,25 @@ export default function ZuvioPanel() {
                     </p>
                   )}
 
-                  {expanded && courses && (
-                    <div className="mt-2 space-y-1 border-t border-zinc-200 pt-2 dark:border-zinc-600">
+                  {courses && (
+                    <div className="mt-2 border-t border-zinc-200 pt-2 dark:border-zinc-600">
                       {courses.length === 0 ? (
                         <p className="text-xs text-zinc-500 dark:text-zinc-400">這個帳號沒有課程</p>
                       ) : (
-                        <>
-                          <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                            勾選要監控的課程，都不勾就是全部
-                          </p>
+                        <select
+                          value={account.courseId ?? ""}
+                          onChange={(e) => selectCourse(account, e.target.value)}
+                          className={inputClass}
+                          aria-label="監控課程"
+                        >
+                          <option value="">全部課程 ({courses.length})</option>
                           {courses.map((course) => (
-                            <label
-                              key={course.course_id}
-                              className="flex cursor-pointer items-center gap-2 rounded px-1 py-0.5 text-sm hover:bg-zinc-50 dark:hover:bg-zinc-600/50"
-                            >
-                              <input
-                                type="checkbox"
-                                checked={picked.has(course.course_id)}
-                                onChange={() => toggleCourse(account, course.course_id)}
-                                className="h-4 w-4 rounded border-zinc-300 text-blue-600 focus:ring-blue-500"
-                              />
-                              <span className="min-w-0 flex-1 truncate text-zinc-900 dark:text-white">
-                                {course.course_name}
-                                {course.teacher_name && (
-                                  <span className="ml-1 text-xs text-zinc-500">({course.teacher_name})</span>
-                                )}
-                              </span>
-                            </label>
+                            <option key={course.course_id} value={course.course_id}>
+                              {course.course_name}
+                              {course.teacher_name ? `（${course.teacher_name}）` : ""}
+                            </option>
                           ))}
-                        </>
+                        </select>
                       )}
                     </div>
                   )}

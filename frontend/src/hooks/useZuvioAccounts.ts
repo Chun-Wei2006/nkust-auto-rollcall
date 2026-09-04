@@ -9,7 +9,7 @@ export interface ZuvioAccount {
   email: string;
   password: string;
   label?: string;
-  courseIds?: string[]; // 勾選要監控的課程；空或未設定代表全部
+  courseId?: string; // 要監控的課程；未設定代表全部
 }
 
 const ACCOUNTS_KEY = "zuvio_accounts";
@@ -35,8 +35,9 @@ function writeJson(key: string, value: unknown) {
 }
 
 // 與 useAccounts 相同的 useSyncExternalStore 模式，避免 hydration mismatch
-function createStore<T>(key: string, initial: T) {
-  let cached = readJson<T>(key, initial);
+function createStore<T>(key: string, initial: T, migrate?: (value: T) => T) {
+  const loaded = readJson<T>(key, initial);
+  let cached = migrate && loaded !== initial ? migrate(loaded) : loaded;
   const listeners = new Set<() => void>();
   return {
     subscribe(callback: () => void) {
@@ -54,7 +55,13 @@ function createStore<T>(key: string, initial: T) {
 }
 
 const EMPTY_ACCOUNTS: ZuvioAccount[] = [];
-const accountsStore = createStore<ZuvioAccount[]>(ACCOUNTS_KEY, EMPTY_ACCOUNTS);
+const accountsStore = createStore<ZuvioAccount[]>(ACCOUNTS_KEY, EMPTY_ACCOUNTS, (raw) =>
+  // 早期版本存的是多選的 courseIds，只保留第一個
+  raw.map((acc) => {
+    const { courseIds, ...rest } = acc as ZuvioAccount & { courseIds?: string[] };
+    return courseIds?.length === 1 ? { ...rest, courseId: courseIds[0] } : rest;
+  })
+);
 const locationStore = createStore<Coordinates | null>(LOCATION_KEY, null);
 const modeStore = createStore<RollcallMode>(MODE_KEY, "nkust");
 

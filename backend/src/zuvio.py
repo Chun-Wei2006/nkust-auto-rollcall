@@ -143,6 +143,9 @@ class ZuvioClient:
         for c in data.get("courses") or []:
             if not isinstance(c, dict) or not c.get("course_id"):
                 continue
+            # Zuvio 官方活動（如「ZUVIO問卷」）不是課程，略過
+            if "zuvio" in str(c.get("teacher_name") or "").lower():
+                continue
             courses.append({
                 "course_id": str(c["course_id"]),
                 "course_name": str(c.get("course_name") or c.get("name") or ""),

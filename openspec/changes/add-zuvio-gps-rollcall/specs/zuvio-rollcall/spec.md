@@ -42,15 +42,15 @@
 - **THEN** 回應 HTTP 422，不呼叫 Zuvio
 
 ### Requirement: Zuvio 帳號管理
-前端 SHALL 提供獨立於高科大帳號的 Zuvio 帳號管理，儲存於 localStorage `zuvio_accounts`，每筆包含 Email、密碼、選填別名與選填的監控課程清單。
+前端 SHALL 提供獨立於高科大帳號的 Zuvio 帳號管理，儲存於 localStorage `zuvio_accounts`，每筆包含 Email、密碼、選填別名與選填的監控課程。
 
 #### Scenario: 新增與編輯帳號
 - **WHEN** 使用者新增或編輯 Zuvio 帳號
 - **THEN** 資料只寫入瀏覽器 localStorage，不上傳伺服器
 
-#### Scenario: 載入課程並勾選
+#### Scenario: 載入課程並選擇
 - **WHEN** 使用者對某帳號按「載入課程」
-- **THEN** 前端登入取得 token、取得課程清單並顯示勾選框，勾選結果存回該帳號的 `courseIds`；未勾選任何課程時視為監控全部課程
+- **THEN** 前端登入取得 token、取得課程清單並顯示下拉選單，選擇的課程存回該帳號的 `courseId`；選「全部課程」時監控全部課程。Zuvio 官方活動（teacher_name 含 Zuvio）不列入
 
 ### Requirement: GPS 座標設定
 前端 SHALL 提供全域的 GPS 座標設定，儲存於 localStorage `zuvio_location`。輸入方式 MUST 支援直接貼上 Google 地圖的座標字串（如 `22.725299, 120.316478`），並提供「使用目前位置」按鈕以瀏覽器定位填入。
