@@ -22,12 +22,6 @@ const MapPicker = dynamic(() => import("@/components/MapPicker"), { ssr: false }
 const POLL_INTERVAL_MS = 30_000;
 const MAX_LOG_ENTRIES = 50;
 
-function googleMapsUrl(coords: Coordinates | null) {
-  return coords
-    ? `https://www.google.com/maps/search/?api=1&query=${coords.lat},${coords.lng}`
-    : "https://www.google.com/maps";
-}
-
 interface LogEntry {
   id: string;
   time: string;
@@ -410,23 +404,13 @@ export default function ZuvioPanel() {
             {locating ? "定位中" : "目前位置"}
           </button>
         </div>
-        <div className="mt-2 flex gap-2">
-          <button
-            type="button"
-            onClick={() => setShowMap(true)}
-            className="flex-1 rounded-md bg-zinc-200 px-3 py-1.5 text-sm font-medium text-zinc-700 hover:bg-zinc-300 dark:bg-zinc-600 dark:text-white dark:hover:bg-zinc-500"
-          >
-            在地圖上選點
-          </button>
-          <a
-            href={googleMapsUrl(location)}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex-1 rounded-md bg-zinc-200 px-3 py-1.5 text-center text-sm font-medium text-zinc-700 hover:bg-zinc-300 dark:bg-zinc-600 dark:text-white dark:hover:bg-zinc-500"
-          >
-            開啟 Google 地圖
-          </a>
-        </div>
+        <button
+          type="button"
+          onClick={() => setShowMap(true)}
+          className="mt-2 w-full rounded-md bg-zinc-200 px-3 py-1.5 text-sm font-medium text-zinc-700 hover:bg-zinc-300 dark:bg-zinc-600 dark:text-white dark:hover:bg-zinc-500"
+        >
+          在地圖上選點
+        </button>
         {coordError ? (
           <p className="mt-1 text-xs text-red-600 dark:text-red-400">{coordError}</p>
         ) : (

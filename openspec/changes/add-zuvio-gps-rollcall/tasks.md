@@ -10,7 +10,7 @@
 - [x] 2.3 `ZuvioPanel` 立即點名：對勾選帳號並行呼叫 `/zuvio/rollcall/`，顯示每帳號每課程結果
 - [x] 2.4 `ZuvioPanel` 自動監控：30 秒輪詢、token 記憶體快取與失效重登、成功課程不重複簽到、停止與 unmount 清理
 - [x] 2.5 `page.tsx` 新增「高科大 QR 點名 / Zuvio GPS 點名」模式切換，記住上次選擇
-- [x] 2.6 `MapPicker.tsx`：Leaflet 地圖選點（OSM 街道圖 / Esri 衛星圖、中央準星、目前位置），「開啟 Google 地圖」連結
+- [x] 2.6 `MapPicker.tsx`：Leaflet 地圖選點（OSM 街道圖 / Esri 衛星圖、中央準星、目前位置）
 - [x] 2.7 監控期間以 Screen Wake Lock 保持螢幕喚醒
 
 ## 3. 驗證與文件
