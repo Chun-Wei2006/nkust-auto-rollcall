@@ -1,0 +1,7 @@
+# 本機或 ARM 主機（樹莓派）沒有對應的 GHCR image 時，用這個 override 從原始碼 build：
+#   docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build
+services:
+  api:
+    build: .
+  api-dev:
+    build: .

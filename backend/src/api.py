@@ -15,13 +15,17 @@ allowed_origins = [
 ]
 
 # 從環境變數讀取前端 URL（必須明確指定，不再允許所有 vercel.app）
-# 可用逗號分隔多個來源，方便同時允許正式站與 Vercel preview
+# 可用逗號分隔多個來源
 frontend_url = os.getenv("FRONTEND_URL", "")
 allowed_origins += [u.strip().rstrip("/") for u in frontend_url.split(",") if u.strip()]
+
+# 測試環境可用 regex 放行所有 Vercel preview 網址（production 不要設）
+frontend_url_regex = os.getenv("FRONTEND_URL_REGEX") or None
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
+    allow_origin_regex=frontend_url_regex,
     allow_credentials=True,
     allow_methods=["POST", "GET"],  # 只允許需要的方法
     allow_headers=["Content-Type"],  # 只允許需要的 headers
