@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import dynamic from "next/dynamic";
 import { ZuvioAccount, useZuvioAccounts, useZuvioLocation } from "@/hooks/useZuvioAccounts";
 import {
   Coordinates,
@@ -15,8 +16,17 @@ import {
   zuvioRollcall,
 } from "@/lib/zuvio";
 
+// Leaflet 需要 window，只在 client 載入
+const MapPicker = dynamic(() => import("@/components/MapPicker"), { ssr: false });
+
 const POLL_INTERVAL_MS = 30_000;
 const MAX_LOG_ENTRIES = 50;
+
+function googleMapsUrl(coords: Coordinates | null) {
+  return coords
+    ? `https://www.google.com/maps/search/?api=1&query=${coords.lat},${coords.lng}`
+    : "https://www.google.com/maps";
+}
 
 interface LogEntry {
   id: string;
@@ -44,6 +54,7 @@ export default function ZuvioPanel() {
   const [coordText, setCoordText] = useState(() => (location ? formatCoordinates(location) : ""));
   const [coordError, setCoordError] = useState<string | null>(null);
   const [locating, setLocating] = useState(false);
+  const [showMap, setShowMap] = useState(false);
 
   // 帳號表單
   const [isAdding, setIsAdding] = useState(false);
@@ -120,6 +131,13 @@ export default function ZuvioPanel() {
       },
       { enableHighAccuracy: true, timeout: 10_000 }
     );
+  };
+
+  const pickFromMap = (coords: Coordinates) => {
+    setCoordText(formatCoordinates(coords));
+    setLocation(coords);
+    setCoordError(null);
+    setShowMap(false);
   };
 
   // ── 帳號表單 ─────────────────────────────────────────
@@ -318,6 +336,30 @@ export default function ZuvioPanel() {
     return () => clearInterval(timer);
   }, [monitoring, location, accounts, selectedIds, runOnce]);
 
+  // 監控時要求螢幕保持喚醒（iOS 16.4+ / Android Chrome），避免手機鎖屏後 JS 被暫停
+  useEffect(() => {
+    if (!monitoring || typeof navigator === "undefined" || !("wakeLock" in navigator)) return;
+    let sentinel: WakeLockSentinel | null = null;
+    let disposed = false;
+    const acquire = async () => {
+      try {
+        sentinel = await navigator.wakeLock.request("screen");
+      } catch {
+        // 低電量或不在前景時會被拒絕，忽略即可
+      }
+    };
+    const onVisible = () => {
+      if (document.visibilityState === "visible" && !disposed) void acquire();
+    };
+    void acquire();
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      disposed = true;
+      document.removeEventListener("visibilitychange", onVisible);
+      void sentinel?.release();
+    };
+  }, [monitoring]);
+
   const toggleSelected = (id: string) => {
     setSelectedIds((prev) => {
       const next = new Set(prev);
@@ -368,14 +410,35 @@ export default function ZuvioPanel() {
             {locating ? "定位中" : "目前位置"}
           </button>
         </div>
+        <div className="mt-2 flex gap-2">
+          <button
+            type="button"
+            onClick={() => setShowMap(true)}
+            className="flex-1 rounded-md bg-zinc-200 px-3 py-1.5 text-sm font-medium text-zinc-700 hover:bg-zinc-300 dark:bg-zinc-600 dark:text-white dark:hover:bg-zinc-500"
+          >
+            在地圖上選點
+          </button>
+          <a
+            href={googleMapsUrl(location)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex-1 rounded-md bg-zinc-200 px-3 py-1.5 text-center text-sm font-medium text-zinc-700 hover:bg-zinc-300 dark:bg-zinc-600 dark:text-white dark:hover:bg-zinc-500"
+          >
+            開啟 Google 地圖
+          </a>
+        </div>
         {coordError ? (
           <p className="mt-1 text-xs text-red-600 dark:text-red-400">{coordError}</p>
         ) : (
           <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-            在 Google 地圖長按教室位置，複製出現的座標貼到這裡
+            用地圖選點最快；或在 Google 地圖長按教室位置，複製座標貼到上面
           </p>
         )}
       </div>
+
+      {showMap && (
+        <MapPicker initial={location} onPick={pickFromMap} onClose={() => setShowMap(false)} />
+      )}
 
       {/* 帳號管理 */}
       <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-700 dark:bg-zinc-800/50">
@@ -639,7 +702,7 @@ export default function ZuvioPanel() {
           )}
           {monitoring && (
             <p className="text-center text-xs text-amber-700 dark:text-amber-400">
-              監控期間請保持這個頁面在前景，瀏覽器會暫停背景分頁的計時器
+              監控期間請保持這個頁面在前景並保持螢幕開啟，手機鎖屏或切到其他 App 時瀏覽器會暫停檢查
             </p>
           )}
         </div>
