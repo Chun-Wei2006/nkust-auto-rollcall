@@ -3,8 +3,15 @@
 import { useState } from "react";
 import QrScanner from "@/components/QrScanner";
 import AccountManager from "@/components/AccountManager";
+import ZuvioPanel from "@/components/ZuvioPanel";
 import { useAccounts, Account } from "@/hooks/useAccounts";
+import { RollcallMode, useRollcallMode } from "@/hooks/useZuvioAccounts";
 import { parseShareLink } from "@/lib/share";
+
+const MODES: { value: RollcallMode; label: string }[] = [
+  { value: "nkust", label: "高科大 QR 點名" },
+  { value: "zuvio", label: "Zuvio GPS 點名" },
+];
 
 interface RollcallResult {
   accountId: string;
@@ -16,6 +23,7 @@ interface RollcallResult {
 export default function Home() {
   const { accounts, isLoaded, addAccount, updateAccount, removeAccount, clearAccounts } =
     useAccounts();
+  const { mode, setMode } = useRollcallMode();
 
   const [selectedAccountIds, setSelectedAccountIds] = useState<Set<string>>(new Set());
   const [rollcallGoto, setRollcallGoto] = useState("");
@@ -161,11 +169,31 @@ export default function Home() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-zinc-50 p-4 dark:bg-zinc-900">
       <main className="w-full max-w-md rounded-2xl bg-white p-8 shadow-lg dark:bg-zinc-800">
-        <h1 className="mb-6 text-center text-2xl font-bold text-zinc-900 dark:text-white">
+        <h1 className="mb-4 text-center text-2xl font-bold text-zinc-900 dark:text-white">
           NKUST 自動點名
         </h1>
 
-        {showScanner ? (
+        {/* 點名模式切換 */}
+        <div className="mb-6 flex rounded-lg bg-zinc-100 p-1 dark:bg-zinc-700">
+          {MODES.map((m) => (
+            <button
+              key={m.value}
+              type="button"
+              onClick={() => setMode(m.value)}
+              className={`flex-1 rounded-md py-1.5 text-sm font-medium transition-colors ${
+                mode === m.value
+                  ? "bg-white text-zinc-900 shadow dark:bg-zinc-800 dark:text-white"
+                  : "text-zinc-600 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-white"
+              }`}
+            >
+              {m.label}
+            </button>
+          ))}
+        </div>
+
+        {mode === "zuvio" ? (
+          <ZuvioPanel />
+        ) : showScanner ? (
           <div className="mb-6">
             <QrScanner onScan={handleScan} onClose={() => setShowScanner(false)} />
           </div>
@@ -321,7 +349,7 @@ export default function Home() {
         )}
 
         {/* 結果顯示 */}
-        {results.length > 0 && (
+        {mode === "nkust" && results.length > 0 && (
           <div className="mt-4 space-y-2">
             {results.length > 1 && (
               <div className="mb-2 text-center text-sm text-zinc-600 dark:text-zinc-400">
