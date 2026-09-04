@@ -14,6 +14,6 @@
 - [x] 2.7 監控期間以 Screen Wake Lock 保持螢幕喚醒
 
 ## 3. 驗證與文件
-- [ ] 3.1 以真實 Zuvio 帳號驗證登入、課程列表，記錄 `getRollcall` 實際回應欄位並修正解析
-- [ ] 3.2 在點名開放時段驗證 `makeRollcall` 成功與座標過遠被拒的訊息
+- [x] 3.1 以真實 Zuvio 帳號驗證登入、課程列表，記錄 `getRollcall` 實際回應欄位並修正解析
+- [x] 3.2 在點名開放時段驗證 `makeRollcall` 成功與座標過遠被拒的訊息
 - [x] 3.3 README 新增 Zuvio GPS 點名說明與三個端點的 API 文件
