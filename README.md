@@ -15,6 +15,7 @@
 ## 功能特色
 
 - **自動點名**：自動登入平台並完成課堂點名
+- **Zuvio GPS 點名**：以 Zuvio 帳號登入、載入課程、指定教室座標，立即簽到或自動監控點名開放
 - **QR Code 掃描**：支援掃描教室 QR Code 快速取得點名參數
 - **多帳號管理**：可儲存多組帳號，支援別名設定方便辨識
 - **帳號分享**：以連結分享單一或多個帳號，支援 AirDrop / LINE / QR Code，可選擇加密
@@ -67,7 +68,8 @@ nkust-auto-rollcall/
 ├── backend/                  # FastAPI 後端服務
 │   ├── src/
 │   │   ├── api.py           # REST API 端點
-│   │   └── auto_rollcall.py # 自動點名核心邏輯
+│   │   ├── auto_rollcall.py # 高科大 Moocs 點名核心邏輯
+│   │   └── zuvio.py         # Zuvio GPS 點名（token API）
 │   └── requirements.txt
 │
 └── openspec/                 # 規格驅動開發文件
@@ -121,6 +123,16 @@ https://autorollcall.chunweidev.com/import#<payload>
 - 面對面時可改用「顯示 QR」，對方用本站的「掃描」功能掃描即可
 - 可選填**分享密碼**（至少 6 個字元），連結會以 PBKDF2 + AES-GCM 加密，對方需輸入密碼才能匯入。未加密的連結等同直接把帳號密碼送出，只傳給信任的人
 - 對方開啟連結後會看到匯入預覽，可勾選要匯入的帳號；同學號的帳號會更新密碼與別名
+
+### Zuvio GPS 點名
+
+1. 首頁切換到「Zuvio GPS 點名」
+2. 在 Google 地圖長按教室位置，複製出現的座標（如 `22.725299, 120.316478`）貼到「教室 GPS 座標」
+3. 新增 Zuvio 帳號（Email 與密碼，與高科大學號帳號分開儲存）
+4. 按「載入課程」，勾選要監控的課程（不勾就是全部）
+5. 「立即點名」會對開放中的課程簽到一次；「自動監控」會在頁面開著時每 30 秒檢查一次，點名一開放就自動簽到
+
+Zuvio 帳號與登入 token 只存在瀏覽器，後端不保存任何資料。
 
 ## 本地開發
 
@@ -224,6 +236,56 @@ FRONTEND_URL=https://your-frontend-url.com
   "elapsed_time": 0.74
 }
 ```
+
+### POST `/zuvio/login/`
+
+Zuvio 登入，回傳 token 供後續請求使用。
+
+```json
+{ "email": "you@example.com", "password": "密碼" }
+```
+
+回應：`{ "success": true, "message": "登入成功", "user_id": "...", "access_token": "...", "name": "..." }`
+
+### POST `/zuvio/courses/`
+
+取得目前修習的課程。
+
+```json
+{ "user_id": "...", "access_token": "..." }
+```
+
+回應：`{ "success": true, "courses": [{ "course_id": "...", "course_name": "...", "teacher_name": "..." }] }`。token 失效時 `success: false` 且 `token_expired: true`。
+
+### POST `/zuvio/rollcall/`
+
+查詢多門課程的點名狀態，開放中的以指定座標簽到。
+
+```json
+{
+  "user_id": "...",
+  "access_token": "...",
+  "lat": 22.725299,
+  "lng": 120.316478,
+  "course_ids": ["12345", "67890"]
+}
+```
+
+回應：
+
+```json
+{
+  "success": true,
+  "token_expired": false,
+  "results": [
+    { "course_id": "12345", "status": "success", "message": "簽到成功" },
+    { "course_id": "67890", "status": "not_open", "message": "尚未開放點名" }
+  ],
+  "elapsed_time": 0.42
+}
+```
+
+`status` 為 `success`（已簽到）、`not_open`（尚未開放）或 `failed`（Zuvio 拒絕，`message` 為原因）。座標超出範圍回 HTTP 422。
 
 ## 開發指令
 
