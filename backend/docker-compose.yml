@@ -1,10 +1,28 @@
+# 自架部署：production 與測試環境跑在同一台 VM
+#   api      ← ghcr image :main   ← main 分支      ← api.chunweidev.com
+#   api-dev  ← ghcr image :dev    ← develop 分支   ← api-dev.chunweidev.com
+# Watchtower 每 60 秒檢查 GHCR 有無新 image，有就自動更新對應容器。
+# 對外全部走 cloudflared，容器不開任何 port。
 services:
   api:
-    build: .
+    image: ghcr.io/chun-wei2006/nkust-auto-rollcall-api:main
     restart: unless-stopped
     environment:
       - PORT=8000
       - FRONTEND_URL=${FRONTEND_URL:-https://autorollcall.chunweidev.com}
+    labels:
+      - com.centurylinklabs.watchtower.enable=true
+
+  api-dev:
+    image: ghcr.io/chun-wei2006/nkust-auto-rollcall-api:dev
+    restart: unless-stopped
+    environment:
+      - PORT=8000
+      - FRONTEND_URL=${FRONTEND_URL_DEV:-https://dev.autorollcall.chunweidev.com}
+      # 允許所有 Vercel preview 網址打測試後端（在 .env 設定，例如 https://frontend-.*\.vercel\.app）
+      - FRONTEND_URL_REGEX=${FRONTEND_URL_REGEX_DEV:-}
+    labels:
+      - com.centurylinklabs.watchtower.enable=true
 
   cloudflared:
     image: cloudflare/cloudflared:latest
@@ -14,3 +32,11 @@ services:
       - TUNNEL_TOKEN=${TUNNEL_TOKEN}
     depends_on:
       - api
+      - api-dev
+
+  watchtower:
+    image: containrrr/watchtower
+    restart: unless-stopped
+    command: --interval 60 --cleanup --label-enable
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock

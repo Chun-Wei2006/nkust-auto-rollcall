@@ -28,6 +28,16 @@ main (穩定版本，禁止直接 push)
 4. 累積足夠功能後，從 `develop` 發 PR 到 `main`
 5. 合併到 `main` 後打 tag
 
+### 部署環境
+
+| 分支 | 用途 | 前端 | 後端 |
+|------|------|------|------|
+| feature / fix 分支 | 開發中 | Vercel preview 網址 | `api-dev.chunweidev.com`（測試後端放行所有 preview） |
+| `develop` | 測試環境 | `dev.autorollcall.chunweidev.com` | `api-dev.chunweidev.com` |
+| `main` | 正式環境 | `autorollcall.chunweidev.com` | `api.chunweidev.com` |
+
+推送到 `develop` / `main` 後，前端由 Vercel、後端由 GitHub Actions + Watchtower 自動部署，不需要手動操作。測試環境與正式環境的網域不同，瀏覽器儲存的帳號資料互不影響。
+
 ## Tag Convention (Semantic Versioning)
 
 格式：`vMAJOR.MINOR.PATCH`

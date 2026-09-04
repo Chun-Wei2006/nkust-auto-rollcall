@@ -173,7 +173,10 @@ NEXT_PUBLIC_API_URL=http://localhost:8000
 #### 後端（選用）
 
 ```env
+# CORS 白名單，可用逗號分隔多個來源
 FRONTEND_URL=https://your-frontend-url.com
+# 選填：以 regex 放行來源（測試環境用來允許 Vercel preview）
+FRONTEND_URL_REGEX=https://frontend-.*\\.vercel\\.app
 ```
 
 ## API 文件
@@ -247,19 +250,18 @@ uvicorn src.api:app            # 生產模式
 
 ### 前端（Vercel）
 
-推送到 `main` 分支時自動部署。
+推送到 `main` 部署到正式站，推送到 `develop` 部署到 `dev.autorollcall.chunweidev.com`，其他分支產生 preview 網址。
 
 ### 後端（Docker + Cloudflare Tunnel）
 
-後端自架在 Proxmox VM 上，以 Docker Compose 執行 `api` 與 `cloudflared`，透過 Cloudflare Tunnel 對外提供 `https://api.chunweidev.com`。
+推送到 `develop` 或 `main` 且 `backend/` 有變動時，GitHub Actions 會 build image 推到 GHCR，自架 VM 上的 Watchtower 自動更新對應容器：
 
-完整步驟請參閱 [backend/DEPLOY_SELFHOST.md](backend/DEPLOY_SELFHOST.md)。更新方式：
+| 分支 | Image tag | 後端 | 前端 |
+|------|-----------|------|------|
+| `develop` | `:dev` | `https://api-dev.chunweidev.com` | `https://dev.autorollcall.chunweidev.com` |
+| `main` | `:main` | `https://api.chunweidev.com` | `https://autorollcall.chunweidev.com` |
 
-```bash
-cd backend
-git pull
-docker compose up -d --build
-```
+完整步驟請參閱 [backend/DEPLOY_SELFHOST.md](backend/DEPLOY_SELFHOST.md)。
 
 ## 注意事項
 
